@@ -1,6 +1,7 @@
 from selenium import webdriver
 from bs4 import BeautifulSoup
 import threading
+from threadpool import *
 class Bedding(object):
     phantomjs_max = 1  ##同时开启phantomjs个数
     jiange = 0.00001  ##开启phantomjs间隔
@@ -20,19 +21,31 @@ class Bedding(object):
     def findItem(self):
         soup=BeautifulSoup(self.driver.page_source,"html.parser")
         tags=soup.select(".pic-link.J_ClickStat.J_ItemPicA")
+        urls=[]
         for i in tags:
-            print(i["href"])
-            # threading.Thread(target=self.fetchData,args=(i["href"],)).start()
+            urls.append(i["href"])
+        pool=ThreadPool(5)
+        urlRequests=makeRequests(self.fetchData, urls)
+        [pool.putRequest(req) for req in urlRequests]
+        pool.wait()
+        # print("结束")
 
     def fetchData(self,url):
-        # print(type(url))
-        driver=webdriver.PhantomJS()
-        driver.set_window_size(1920, 1080)
+        driver=webdriver.PhantomJS(service_args=self.service_args)
         if("http" not in url):
             url="http:"+url
-        print(url)
+        if "tmall" in url:
+            return
         driver.get(url)
         print("currentUrl:  "+driver.current_url)
+        # self.analyze(driver.page_source)
+        driver.quit()
+
+    def analyze(self,page):
+        soup=BeautifulSoup(page,"html.parser")
+        # title=soup.select("#detail .tb-detail-hd > h1")[0]
+        print(title)
+
 
     def main(self):
         self.search()
