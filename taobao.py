@@ -5,7 +5,7 @@
 from selenium import webdriver
 from bs4 import BeautifulSoup
 from threadpool import *
-import re,json,os
+import re,json
 import logging
 logging.basicConfig(level=logging.DEBUG,
                 format='%(asctime)s %(filename)s[line:%(lineno)d] %(levelname)s %(message)s',
@@ -22,6 +22,7 @@ class Bedding(object):
     pageCount=0 #总页数
     service_args = ['--load-images=no', '--disk-cache=yes']  ##参数设置，禁止图片加载
     dataList=[] #存放数据的列表
+    requestUrl=[]
     def __init__(self):
         self.driver=webdriver.PhantomJS()
         self.driver.get("http://www.taobao.com")
@@ -36,7 +37,10 @@ class Bedding(object):
         self.pageCount=int(re.findall(r"\d+",soup.select(".total")[0].text)[0])
         # self.pageCount=1 #测试数据
         logging.info("总页数：%d" % self.pageCount)
+        currentPage=0
         for i in range(self.pageCount):
+            currentPage=currentPage+1
+            logging.info("currentPage= %d" % currentPage)
             self.findItem()
             self.driver.find_element_by_css_selector("a.J_Ajax.num.icon-tag").click()
 
@@ -62,6 +66,9 @@ class Bedding(object):
         currentUrl=driver.current_url
         if "tmall" in currentUrl:
             return
+        if currentUrl in self.requestUrl:
+            return
+        self.requestUrl.append(currentUrl)
         self.analyze(driver.page_source,currentUrl)
         driver.quit()
 
@@ -76,20 +83,21 @@ class Bedding(object):
         details["url"]=currentUrl
         for i in attributes:
             attr=i.text.split(":")
-            details[attr[0]]=attr[1]
+            details[attr[0].replace("&nbsp","").strip()]=attr[1].replace("&nbsp","").strip()
         self.dataList.append(details)
         logging.debug(details)
+        self.writeData()
 
     def writeData(self):#将数据以json格式写入文件
         logging.debug("写入中")
-        with open(os.path.abspath(".")+"\\taobao.log","a")as f:
+        with open("./taobao.log","w",encoding="utf-8")as f:
             f.write(json.dumps(self.dataList))
 
     def main(self):
         self.search()
         self.loop()
         self.driver.quit()
-        self.writeData()
+        # self.writeData()
         logging.info("finish")
 if __name__ == '__main__':
     Bedding().main()
